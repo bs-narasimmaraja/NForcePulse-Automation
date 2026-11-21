@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration>
+  <Appenders>
+    <File name="FILEOUT" fileName="NforcePulseLogReports/ApplicationLogs-${date:yyyy-MM-dd}.log" append="false">
+      <PatternLayout pattern="[%d{yyyy-MM-dd HH:mm:ss.SSS}] [%highlight{%d{ABSOLUTE} %p}{STYLE=Logback, bold}][%style{Application %T}{magenta}][%style{%C{1.}.%M}{cyan}] %m %red{%xEx{full}} %n"/>
+    </File>
+    <Console name="STDOUT" target="SYSTEM_OUT">
+      <PatternLayout pattern="[%d{yyyy-MM-dd HH:mm:ss.SSS}] [%highlight{%d{ABSOLUTE} %p}{STYLE=Logback, bold}][%style{Application %T}{magenta}][%style{%C{1.}.%M}{cyan}] %m %red{%xEx{full}} %n"/>
+    </Console>
+  </Appenders>
+
+  <Loggers>
+    <Root level="debug">
+      <AppenderRef ref="FILEOUT" level="Trace"/>
+      <AppenderRef ref="STDOUT" level="Trace"/>
+    </Root>
+  </Loggers>
+</Configuration>

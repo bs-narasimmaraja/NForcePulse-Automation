@@ -1,0 +1,23 @@
+
+# Maven generated files
+target/
+
+# IntelliJ IDEA
+.idea/
+
+# Generated automation reports
+NforcePulseHtmlAndPdfReports/
+NforcePulseLogReports/
+
+# Log files
+*.log
+
+# Temporary files
+*.tmp
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Environment-specific credentials
+configuration.properties

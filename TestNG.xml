@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<suite name="NforcePulse Cucumber Suite" verbose="1"
+       parallel="none"
+       thread-count="1"
+       data-provider-thread-count="1">
+
+ <listeners>
+    <listener class-name="com.qa.nforcepulse.listeners.TestNGListeners"/>
+  </listeners>
+
+  <test name="Cucumber Test" thread-count="1">
+    <classes>
+      <class name="com.qa.nforcepulse.testrunner.TestRunner"/>
+    </classes>
+  </test>
+
+</suite>
