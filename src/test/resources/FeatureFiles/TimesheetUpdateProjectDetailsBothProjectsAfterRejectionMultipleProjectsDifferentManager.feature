@@ -21,7 +21,6 @@ Feature: TimesheetUpdateProjectDetailsBothProjectsAfterRejectionMultipleProjects
         | Thursday  | 6     | 00      | Pulse Thursday work  |
         | Friday    | 2     | 00      | Pulse Friday work    |
 
-       And the Employee selects Actions
        And the Employee select Submit
        And the Employee timesheet is successfully submitted and displayed as Submitted
 
@@ -37,13 +36,13 @@ Feature: TimesheetUpdateProjectDetailsBothProjectsAfterRejectionMultipleProjects
         | Thursday  | 2     | 00      | Sync Thursday work  |
         | Friday    | 6     | 00      | Sync Friday work    |
 
-       And the Employee selects Actions
        And the Employee select Submit
        And the Employee timesheet is successfully submitted and displayed as Submitted
        And the Employee captures the submitted week and employee name for approval verification
 
        When the Employee logs out of the application
        And the Manager logs in with valid credentials
+       And the Manager switches to the Team Workspace
        Then the Manager navigates to the Approvals tab
        And the Manager locates the pending request for the captured week and employee name
        And the Manager clicks the review icon for that request
@@ -55,6 +54,7 @@ Feature: TimesheetUpdateProjectDetailsBothProjectsAfterRejectionMultipleProjects
        And the Manager logs out of the application
 
        And the Second Manager logs in with valid credentials
+       And the Manager switches to the Team Workspace
        Then the Manager navigates to the Approvals tab
        And the Manager locates the pending request for the captured week and employee name
        And the Manager clicks the review icon for that request
@@ -71,30 +71,27 @@ Feature: TimesheetUpdateProjectDetailsBothProjectsAfterRejectionMultipleProjects
        And the Employee navigates to the previously submitted week
        And the Employee selects Actions for project "<WrongProject1>"
        And the Employee selects Update
-       Then the Employee Select the submission confirmation popup
        And the Employee clicks the edit icon in Project Details
        And the Employee updates Client to "<Client>" in Project Details
        And the Employee updates Project to "<CorrectProject1>" in Project Details
        And the Employee saves the Project Details
 
-       And the Employee selects Actions for project "<CorrectProject1>"
-       And the Employee select Submit
+       And the Employee select Submit for project "<CorrectProject1>"
        And the Employee timesheet is successfully submitted and displayed as Submitted
 
        And the Employee selects Actions for project "<WrongProject2>"
        And the Employee selects Update
-       Then the Employee Select the submission confirmation popup
        And the Employee clicks the edit icon in Project Details
        And the Employee updates Client to "<Client>" in Project Details
        And the Employee updates Project to "<CorrectProject2>" in Project Details
        And the Employee saves the Project Details
 
-       And the Employee selects Actions for project "<CorrectProject2>"
-       And the Employee select Submit
+       And the Employee select Submit for project "<CorrectProject2>"
        And the Employee timesheet is successfully submitted and displayed as Submitted
 
        When the Employee logs out of the application
        And the Manager logs in with valid credentials
+       And the Manager switches to the Team Workspace
        Then the Manager navigates to the Approvals tab
        And the Manager navigates to the Re-Submitted tab
        And the Manager locates the pending request for the captured week and employee name
@@ -105,6 +102,7 @@ Feature: TimesheetUpdateProjectDetailsBothProjectsAfterRejectionMultipleProjects
        And the Manager logs out of the application
 
        And the Second Manager logs in with valid credentials
+       And the Manager switches to the Team Workspace
        Then the Manager navigates to the Approvals tab
        And the Manager navigates to the Re-Submitted tab
        And the Manager locates the pending request for the captured week and employee name

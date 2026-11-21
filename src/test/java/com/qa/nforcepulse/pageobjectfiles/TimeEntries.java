@@ -72,8 +72,12 @@ public class TimeEntries {
 		return By.xpath(projectRowXpath(projectName) + "/td[" + column + "]//input[@inputmode='numeric'][2]");
 	}
 	private final By PencilIcon=By.xpath("(//button[.//*[name()='svg' and contains(@class,'lucide-pencil')]])[1]");
-	private final By enteringNotes = By.xpath("//textarea[@placeholder='Notes']");
-	private final By saveNotesButton = By.xpath("//div[contains(@class,'hidden') and contains(@class,'md:block')]//button[normalize-space()='Save Notes']");
+	// Notes panel, scoped to the desktop layout (the mobile cards render a second copy). The box is
+	// matched without its placeholder, which changes ("Notes" vs "Add a reason for this day's
+	// hours") depending on whether a note is required. Edit unlocks a day's already-saved note.
+	private final By notesTextarea = By.xpath("//div[contains(@class,'hidden md:block')]//textarea");
+	private final By notesEditButton = By.xpath("//div[contains(@class,'hidden md:block')]//button[normalize-space()='Edit']");
+	private final By saveNotesButton = By.xpath("//div[contains(@class,'hidden md:block')]//button[normalize-space()='Save Notes']");
 	// Column 9 in the same row - PROJECT DETAILS(1), SUN..SAT(2-8), WEEK TOTAL(9), STATUS(10).
 	// Same DAILY TOTALS exclusion as hoursInput/minutesInput above, same null-vs-named scoping.
 	private By weekTotalCell(String projectName) {
@@ -88,7 +92,15 @@ public class TimeEntries {
 	private By actionBtnForProject(String projectName) {
 		return By.xpath(projectRowXpath(projectName) + "//button[text()='Actions']");
 	}
-	public final By SubmitBtn=By.xpath("//button[normalize-space()='Submit']");
+	// Submit now sits directly below Actions in each project row (data-testid='submit-btn-row'),
+	// so it is clicked on its own - Actions is only for Update / Save Draft. Scoped to the desktop
+	// table's last project row, like ActionBtn: a page-wide "(...)[1]" takes the first match on the
+	// whole page, which is wrong once two projects exist and can also land on a hidden mobile-card
+	// copy of the button.
+	public final By SubmitBtn=By.xpath("//div[contains(@class,'hidden md:block')]//table//tbody/tr[contains(., 'Client')][last()]//button[@data-testid='submit-btn-row']");
+	private By submitBtnForProject(String projectName) {
+		return By.xpath(projectRowXpath(projectName) + "//button[@data-testid='submit-btn-row']");
+	}
 	// Matches the success message however it is worded or punctuated ("...submitted successfully!",
 	// "...submitted successfully"), case-insensitively, on the element that directly holds the
 	// text (not on html/body, which contain it too). The old locator required the exact "!" and
@@ -110,7 +122,9 @@ public class TimeEntries {
 	public void checkTheEmptyGrid() {
 		long overallStart = System.currentTimeMillis();
 		int weeksSkipped = 0;
-		while (reusableMethods.isElementPresent(hasExistingRecordInWeek)) {
+		// An empty week is recognised by the "No records added yet" message staying put for 3s, not by
+		// waiting out a 30s search for a record that isn't there.
+		while (reusableMethods.appearsBeforeEmptySignal(hasExistingRecordInWeek, Checkemptygrid, 3000, 30)) {
 			weeksSkipped++;
 			System.out.println("Current grid is not empty. Moving to next week...");
 
@@ -156,17 +170,17 @@ public class TimeEntries {
 
 			String hours = entries.get(i).get("Hours");
 			String minutes = entries.get(i).get("Minutes");
+			String notes = entries.get(i).get("Notes");
 
 			int column = i + 3;
 
+			// Click the day's hours box first: that is what makes the Notes panel follow this day
+			// (typing alone leaves it on the previous day, where the saved note is locked).
+			reusableMethods.clickElement(hoursInput(column, projectName));
 			reusableMethods.enterText(hoursInput(column, projectName), hours);
 			reusableMethods.enterText(minutesInput(column, projectName), minutes);
-			// Notes entry is held off for now: the app only requires a note when a day's total
-			// is not exactly 8h, so every feature file uses 8h/00m Mon-Fri and skips the Notes
-			// box, which still fails after the first day. To restore: re-add the
-			// waitForNotesPanelToSwitch / clickElement / enterTextReliably(enteringNotes, notes, 3)
-			// / clickOnButton(saveNotesButton) / waitForSaveToComplete(saveNotesButton) sequence
-			// here (reading "Notes" from entries) and use non-8h hours again where needed.
+			// The note must be typed and saved before moving on to the next day.
+			reusableMethods.enterDayNote(notesTextarea, notesEditButton, saveNotesButton, notes);
 
 			runningTotalMinutes += Integer.parseInt(hours) * 60 + Integer.parseInt(minutes);
 			String expectedTotal = String.format("%02dh : %02dm", runningTotalMinutes / 60, runningTotalMinutes % 60);
@@ -186,10 +200,10 @@ public class TimeEntries {
 		reusableMethods.clickOnButton(SubmitBtn);
 	}
 
-	public void acceptTheSubmissionPopup(){
-		reusableMethods.acceptConfirmationPopup();
-
+	public void clickSubmitForProject(String projectName) {
+		reusableMethods.clickOnButton(submitBtnForProject(projectName));
 	}
+
 	public void verifyTimesheetSubmittedMessage(){
 		reusableMethods.waitForSubmissionConfirmation(TimesheetSubmissionMessage, lastProjectRow, 30);
 	}

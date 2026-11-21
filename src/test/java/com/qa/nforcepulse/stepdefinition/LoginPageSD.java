@@ -107,6 +107,11 @@ public class LoginPageSD {
 		testcontext.getPageObjectManager().getTimeEntries().clickOnSubmit();
 	}
 
+	@And("the Employee select Submit for project {string}")
+	public void theEmployeeSelectSubmitForProject(String projectName) {
+		testcontext.getPageObjectManager().getTimeEntries().clickSubmitForProject(projectName);
+	}
+
 	@And("the Employee selects Update")
 	public void theEmployeeSelectsUpdate() {
 		testcontext.getPageObjectManager().getTimeEntries().clickOnUpdateAction();
@@ -132,11 +137,6 @@ public class LoginPageSD {
 		testcontext.getPageObjectManager().getTimeEntries().clickSaveInProjectDetails();
 	}
 
-	@Then("the Employee Select the submission confirmation popup")
-	public void theEmployeeSelectTheSubmissionConfirmationPopup() {
-		// Write code here that turns the phrase above into concrete actions
-		testcontext.getPageObjectManager().getTimeEntries().acceptTheSubmissionPopup();
-	}
 	@And("the Employee timesheet is successfully submitted and displayed as Submitted")
 	public void theEmployeeSuccessfullySubmittedTheTimesheet(){
 		testcontext.getPageObjectManager().getTimeEntries().verifyTimesheetSubmittedMessage();
@@ -180,6 +180,11 @@ public class LoginPageSD {
 	@And("the Manager closes the review popup")
 	public void theManagerClosesTheReviewPopup() {
 		testcontext.getPageObjectManager().getApprovals().closeTimesheetDetailsDrawer();
+	}
+
+	@And("the Manager switches to the Team Workspace")
+	public void theManagerSwitchesToTheTeamWorkspace() {
+		testcontext.getPageObjectManager().getApprovals().switchToTeamWorkspace();
 	}
 
 	@Then("the Manager navigates to the Approvals tab")

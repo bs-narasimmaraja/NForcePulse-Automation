@@ -6,7 +6,7 @@ import org.testng.annotations.DataProvider;
 
 @CucumberOptions(features = "src/test/resources/FeatureFiles/",
 		glue = { "com.qa.nforcepulse.stepdefinition", "com.qa.nforcepulse.hooks" },
-		tags = "@Sanity26",
+		tags = "@Sani",
 		monochrome = true,
 		plugin = { "pretty",
 				"html:target/cucumber-reports.html",

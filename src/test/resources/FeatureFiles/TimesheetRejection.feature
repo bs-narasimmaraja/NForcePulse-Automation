@@ -21,7 +21,6 @@ Feature: TimesheetRejection functionality in NforcePulse
         | Thursday  | 8     | 00      | Bug fixing           |
         | Friday    | 8     | 00      | Documentation work   |
 
-       And the Employee selects Actions
        And the Employee select Submit
        And the Employee timesheet is successfully submitted and displayed as Submitted
        And the Employee captures the submitted week and employee name for approval verification
@@ -29,6 +28,7 @@ Feature: TimesheetRejection functionality in NforcePulse
 
        When the Employee logs out of the application
        And the Manager logs in with valid credentials
+       And the Manager switches to the Team Workspace
        Then the Manager navigates to the Approvals tab
        And the Manager locates the pending request for the captured week and employee name
        And the Manager clicks the review icon for that request

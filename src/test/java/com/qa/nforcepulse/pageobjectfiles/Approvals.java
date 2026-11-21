@@ -16,6 +16,7 @@ public class Approvals {
         this.reusableMethods = reusableMethods;
         this.testContext = testcontext;
     }
+    public final By TeamWorkspace=By.xpath("//li[@role='option' and normalize-space()='Team Workspace']");
     public final By Resubmittedtab=By.xpath("//button[contains(normalize-space(.), 'Re-Submitted')]");
     public final By Approvaltab=By.xpath("//a[.//div[normalize-space()='Approvals']]");
     public final By ViewDetailsIcon=By.xpath("//button[@title='View Details']");
@@ -90,6 +91,17 @@ public class Approvals {
     // to be explicitly closed first.
     private final By closeDrawerButton = By.xpath("//*[name()='svg' and contains(@class,'lucide-x')]/ancestor::button[1]");
 
+    // A manager lands on the dashboard in "My Workspace"; the Approvals tab only appears in the
+    // sidebar after switching to "Team Workspace". The dropdown is matched by its visible text
+    // (either workspace name) so it works whichever one is currently selected. Its HTML was not
+    // shared, so this assumes it is a <button role="combobox"> like the Client/Project dropdowns.
+    private final By workspaceDropdown = By.xpath("//button[@role='combobox' and (contains(normalize-space(.),'My Workspace') or contains(normalize-space(.),'Team Workspace'))]");
+
+    public void switchToTeamWorkspace() {
+        reusableMethods.clickOnButton(workspaceDropdown);
+        reusableMethods.clickOnButton(TeamWorkspace);
+    }
+
     public void clickOnApprovalsTab() {
         reusableMethods.clickOnButton(Approvaltab);
     }
@@ -98,8 +110,13 @@ public class Approvals {
         reusableMethods.clickOnButton(Resubmittedtab);
     }
 
+    // The list is paginated (10 requests per page by default), so the request may be on a later
+    // page. The Next arrow is the right-chevron icon's button (also labelled "Next page"); it is
+    // disabled on the last page, which is where the search stops.
+    private final By nextPageButton = By.xpath("//button[@aria-label='Next page'] | //*[local-name()='svg' and contains(@class,'lucide-chevron-right')]/ancestor::button[1]");
+
     public void clickViewDetailsFor(String employeeName, String week) {
-        reusableMethods.clickOnButton(viewDetailsIconFor(employeeName, week));
+        reusableMethods.clickAcrossPages(viewDetailsIconFor(employeeName, week), ViewDetailsIcon, nextPageButton);
     }
 
     public void clickApproveActionInDrawer() {

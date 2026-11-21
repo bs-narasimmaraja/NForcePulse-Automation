@@ -30,37 +30,170 @@ public class ReusableMethods {
 		element.sendKeys(text);
 	}
 
-	/**
-	 * Some fields get their value silently reverted by the app a moment after typing
-	 * (e.g. a shared Notes box that snaps back to a previously-saved value after a
-	 * background data refresh). Re-types up to maxAttempts times, checking after each
-	 * attempt that the value actually stuck before moving on.
-	 */
-	public void enterTextReliably(By locator, String text, int maxAttempts) {
-		for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+	// First element matching the locator that is on screen and, when requested, editable
+	// (the Notes box is readonly once a day's note is saved and locked). Null if none.
+	private WebElement firstDisplayed(WebDriver driver, By locator, boolean mustBeEditable) {
+		for (WebElement el : driver.findElements(locator)) {
 			try {
-				WebDriverWait wait = new WebDriverWait(getDriver(), Duration.ofSeconds(30));
-				WebElement element = wait.until(ExpectedConditions.elementToBeClickable(locator));
-				// Native .clear() started throwing InvalidElementStateException on this field
-				// after a Chrome auto-update (v153 -> v154) - a real run showed it fail
-				// identically on every one of maxAttempts retries, not just occasionally, so
-				// it isn't a timing issue clear() can be retried past. Select-all + Delete via
-				// real keyboard events clears the field without the native clear() command,
-				// while still firing the keyup/onChange events this React-controlled field
-				// needs to pick up the change.
-				element.sendKeys(Keys.chord(Keys.CONTROL, "a"));
-				element.sendKeys(Keys.DELETE);
-				element.sendKeys(text);
-			} catch (org.openqa.selenium.InvalidElementStateException e) {
-				if (attempt == maxAttempts) {
-					throw e;
+				if (!el.isDisplayed()) {
+					continue;
 				}
-				continue;
+				if (mustBeEditable && (el.getAttribute("readonly") != null || !el.isEnabled())) {
+					continue;
+				}
+				return el;
+			} catch (org.openqa.selenium.StaleElementReferenceException ignored) {
 			}
-			String current = getDriver().findElement(locator).getAttribute("value");
-			if (text.equals(current)) {
-				return;
+		}
+		return null;
+	}
+
+	private void clickWithJsFallback(WebElement element) {
+		try {
+			element.click();
+		} catch (ElementClickInterceptedException intercepted) {
+			((JavascriptExecutor) getDriver()).executeScript("arguments[0].click();", element);
+		}
+	}
+
+	private String pageSignature() {
+		try {
+			return getDriver().findElement(By.tagName("body")).getText();
+		} catch (org.openqa.selenium.WebDriverException e) {
+			return "";
+		}
+	}
+
+	private void scrollIntoView(WebElement element) {
+		((JavascriptExecutor) getDriver()).executeScript("arguments[0].scrollIntoView({block:'center'});", element);
+	}
+
+	/**
+	 * Clicks a row's action (e.g. View Details) in a paginated list when it may be on any page.
+	 * Looks on the current page first; if the row isn't there, scrolls the paging control into view
+	 * and clicks Next, waits for the next page of rows to replace the current one, and looks again -
+	 * until the row is found or Next is disabled (the last page). Fails with a message naming how
+	 * many pages were checked, instead of a bare timeout.
+	 *
+	 * Rows are only judged "not on this page" once the page has rows on screen (anyRowOnPage), so a
+	 * list that is still loading is waited for rather than skipped. Implicit wait is switched off
+	 * while polling so each look is instant.
+	 */
+	public void clickAcrossPages(By target, By anyRowOnPage, By nextPageButton) {
+		getDriver().manage().timeouts().implicitlyWait(Duration.ZERO);
+		try {
+			int page = 1;
+			while (true) {
+				try {
+					new WebDriverWait(getDriver(), Duration.ofSeconds(page == 1 ? 30 : 15)).until(d ->
+							firstDisplayed(d, target, false) != null || firstDisplayed(d, anyRowOnPage, false) != null);
+				} catch (org.openqa.selenium.TimeoutException e) {
+					throw new org.openqa.selenium.NoSuchElementException(
+							"No requests were listed on page " + page + " of the list, so " + target + " could not be found");
+				}
+
+				WebElement hit = firstDisplayed(getDriver(), target, false);
+				if (hit != null) {
+					scrollIntoView(hit);
+					clickWithJsFallback(hit);
+					return;
+				}
+
+				WebElement next = firstDisplayed(getDriver(), nextPageButton, false);
+				if (next == null || !next.isEnabled() || "true".equals(next.getAttribute("disabled"))) {
+					throw new org.openqa.selenium.NoSuchElementException(
+							"The request " + target + " was not found on any of the " + page
+									+ " page(s) of the list (no further page to open)");
+				}
+
+				String before = pageSignature();
+				scrollIntoView(next);
+				clickWithJsFallback(next);
+				try {
+					new WebDriverWait(getDriver(), Duration.ofSeconds(5)).until(d -> !pageSignature().equals(before));
+				} catch (org.openqa.selenium.TimeoutException ignored) {
+					// Same text on the next page is possible; carry on and look again.
+				}
+				page++;
+				if (page > 100) {
+					throw new org.openqa.selenium.NoSuchElementException(
+							"Gave up after 100 pages looking for " + target);
+				}
 			}
+		} finally {
+			getDriver().manage().timeouts().implicitlyWait(Duration.ofSeconds(30));
+		}
+	}
+
+	/**
+	 * Writes the Notes entry for the day whose Hours/Minutes cell was just clicked and filled,
+	 * then saves it - the app only keeps a note once Save Notes is clicked, and the next day must
+	 * not be started before that.
+	 *
+	 * Why the steps are shaped this way: the Notes panel follows whichever day cell was last
+	 * CLICKED (typing alone does not move it), and a saved note locks the box (readonly, with
+	 * Saved / Edit / Delete in place of Save Notes). So this waits for an editable box, or for
+	 * Edit when the day already has a saved note (re-editing a day after Update) and unlocks it,
+	 * clicks into the box, replaces its content, checks the text really landed, waits for Save
+	 * Notes to be enabled, clicks it, and waits for the panel to lock again (Save Notes gone).
+	 * Select-all + Delete is used instead of clear(), which rejects readonly boxes.
+	 * Implicit wait is switched off while polling so a not-yet-present element costs one poll,
+	 * not the whole implicit timeout.
+	 */
+	public void enterDayNote(By textareaLocator, By editLocator, By saveLocator, String note) {
+		getDriver().manage().timeouts().implicitlyWait(Duration.ZERO);
+		try {
+			WebDriverWait wait = new WebDriverWait(getDriver(), Duration.ofSeconds(20));
+
+			wait.until(d -> firstDisplayed(d, textareaLocator, true) != null
+					|| firstDisplayed(d, editLocator, false) != null);
+			if (firstDisplayed(getDriver(), textareaLocator, true) == null) {
+				clickWithJsFallback(firstDisplayed(getDriver(), editLocator, false));
+				wait.until(d -> firstDisplayed(d, textareaLocator, true) != null);
+			}
+
+			boolean typed = false;
+			for (int attempt = 1; attempt <= 3 && !typed; attempt++) {
+				try {
+					WebElement box = wait.until(d -> firstDisplayed(d, textareaLocator, true));
+					clickWithJsFallback(box);
+					box.sendKeys(Keys.chord(Keys.CONTROL, "a"));
+					box.sendKeys(Keys.DELETE);
+					box.sendKeys(note);
+					typed = note.equals(box.getAttribute("value"));
+				} catch (org.openqa.selenium.StaleElementReferenceException
+						| org.openqa.selenium.InvalidElementStateException retry) {
+					// The panel re-rendered while typing; look the box up again and retry.
+				}
+			}
+			if (!typed) {
+				throw new org.openqa.selenium.WebDriverException(
+						"The note text did not stay in the Notes box after 3 attempts: " + note);
+			}
+
+			WebElement save;
+			try {
+				save = new WebDriverWait(getDriver(), Duration.ofSeconds(10)).until(d -> {
+					WebElement s = firstDisplayed(d, saveLocator, false);
+					return s != null && s.isEnabled() ? s : null;
+				});
+			} catch (org.openqa.selenium.TimeoutException e) {
+				throw new org.openqa.selenium.TimeoutException(
+						"Save Notes did not become enabled after typing the note (is the text identical "
+								+ "to what is already saved for this day?): " + note, e);
+			}
+			clickWithJsFallback(save);
+
+			try {
+				new WebDriverWait(getDriver(), Duration.ofSeconds(10))
+						.until(d -> firstDisplayed(d, saveLocator, false) == null);
+			} catch (org.openqa.selenium.TimeoutException e) {
+				throw new org.openqa.selenium.TimeoutException(
+						"Save Notes was clicked but the note was not saved (the panel never switched to "
+								+ "Saved): " + note, e);
+			}
+		} finally {
+			getDriver().manage().timeouts().implicitlyWait(Duration.ofSeconds(30));
 		}
 	}
 
@@ -118,9 +251,49 @@ public class ReusableMethods {
 		return wait.until(ExpectedConditions.visibilityOfElementLocated(locator)).isDisplayed();
 	}
 
-	public boolean isElementPresent(By locator) {
-    return getDriver().findElements(locator).size() > 0;
-}
+	/**
+	 * Decides whether something is there without paying the implicit wait for its absence. A plain
+	 * findElements() for a record that does not exist blocks for the whole implicit wait (30s) before
+	 * returning empty, and that is exactly what happened on every empty week. Instead this polls for
+	 * either the target or an explicit "empty" signal.
+	 *
+	 * Returns true as soon as the target is present. Returns false once the empty signal has stayed
+	 * on screen for settleMillis with the target still absent - the hold-off is there because the app
+	 * briefly shows the empty message while it loads a week's records, so a single sighting is not
+	 * proof. If neither shows within timeoutSeconds it also returns false.
+	 */
+	public boolean appearsBeforeEmptySignal(By target, By emptySignal, long settleMillis, int timeoutSeconds) {
+		getDriver().manage().timeouts().implicitlyWait(Duration.ZERO);
+		try {
+			long deadline = System.currentTimeMillis() + timeoutSeconds * 1000L;
+			long emptySince = -1;
+			while (System.currentTimeMillis() < deadline) {
+				if (!getDriver().findElements(target).isEmpty()) {
+					return true;
+				}
+				if (!getDriver().findElements(emptySignal).isEmpty()) {
+					long now = System.currentTimeMillis();
+					if (emptySince < 0) {
+						emptySince = now;
+					} else if (now - emptySince >= settleMillis) {
+						return false;
+					}
+				} else {
+					emptySince = -1;
+				}
+				try {
+					Thread.sleep(200);
+				} catch (InterruptedException e) {
+					Thread.currentThread().interrupt();
+					return false;
+				}
+			}
+			return false;
+		} finally {
+			getDriver().manage().timeouts().implicitlyWait(Duration.ofSeconds(30));
+		}
+	}
+
     public void selectByVisibleText(By locator, String value) {
     // Unlike every other interaction method here, this previously called findElement()
     // directly with no wait - a real run showed it throw NoSuchElementException when the
@@ -268,25 +441,6 @@ public class ReusableMethods {
 	}
 
 	/**
-	 * The shared Notes textarea re-binds to whichever day's Hours/Minutes cell was
-	 * just edited, which can take a brief moment. This waits for the field to reset
-	 * to empty (the app's signal that it has switched to the new day) before we type
-	 * into it, instead of typing immediately and risking the previous day's context.
-	 * Best-effort: if it never clears, we proceed anyway rather than fail the test.
-	 */
-	public void waitForNotesPanelToSwitch(By notesLocator) {
-		try {
-			WebDriverWait wait = new WebDriverWait(getDriver(), Duration.ofSeconds(3));
-			wait.until(d -> {
-				WebElement el = d.findElement(notesLocator);
-				String value = el.getAttribute("value");
-				return value == null || value.isEmpty();
-			});
-		} catch (org.openqa.selenium.TimeoutException ignored) {
-		}
-	}
-
-	/**
 	 * Waits for a cell's text to change away from a previously-captured value (e.g. the week
 	 * range label after clicking "next week"). Checking isElementPresent() immediately after
 	 * that click, with no settle time, risks reading the previous week's still-visible content
@@ -317,6 +471,9 @@ public class ReusableMethods {
 	 * Best-effort: proceeds anyway if it never disappears, rather than fail the test outright.
 	 */
 	public void waitForElementToDisappear(By locator, int timeoutSeconds) {
+		// Implicit wait off while polling: once the element is gone, findElements() would otherwise
+		// block for the whole implicit wait (30s) on every approve/reject before returning empty.
+		getDriver().manage().timeouts().implicitlyWait(Duration.ZERO);
 		try {
 			WebDriverWait wait = new WebDriverWait(getDriver(), Duration.ofSeconds(timeoutSeconds));
 			wait.until(d -> {
@@ -327,48 +484,15 @@ public class ReusableMethods {
 				}
 			});
 		} catch (org.openqa.selenium.TimeoutException ignored) {
-		}
-	}
-
-	/**
-	 * The Save Notes button carries disabled:opacity-50 styling, implying it goes disabled
-	 * while its save request is in flight. Clicking it and immediately moving to the next
-	 * day's fields (with no wait) risks racing that in-flight save - this waits for the
-	 * button to be enabled again (i.e. the save round-trip to finish) before proceeding.
-	 *
-	 * Manual testing (naturally paced) saves each day's note correctly; rapid automated
-	 * entry does not, even though it follows the exact same click/type sequence - pointing
-	 * at a race with some background refetch/sync that isn't captured by the button's own
-	 * enabled state. The trailing pause below is a pragmatic buffer for that, not a confirmed
-	 * fix - if notes still don't persist per-day after this, the race is elsewhere.
-	 */
-	public void waitForSaveToComplete(By saveButtonLocator) {
-		try {
-			WebDriverWait wait = new WebDriverWait(getDriver(), Duration.ofSeconds(10));
-			wait.until(d -> {
-				try {
-					return d.findElement(saveButtonLocator).isEnabled();
-				} catch (Exception e) {
-					return false;
-				}
-			});
-		} catch (org.openqa.selenium.TimeoutException ignored) {
-		}
-		try {
-			Thread.sleep(1500);
-		} catch (InterruptedException ignored) {
-			Thread.currentThread().interrupt();
+		} finally {
+			getDriver().manage().timeouts().implicitlyWait(Duration.ofSeconds(30));
 		}
 	}
 
 	/**
 	 * Waits for a cell's text to contain an expected value (e.g. the row's running WEEK TOTAL
-	 * matching the sum of days entered so far), instead of inferring "the save finished" from
-	 * the Save Notes button's own enabled/disabled state. A live run showed the button-state
-	 * check passing after day 1 (Monday) while the click for day 2's Save Notes then hung for
-	 * 50s - the button looking "ready" is not proof the prior save actually landed. The WEEK
-	 * TOTAL only updates once the app has genuinely registered the day's entry, so waiting for
-	 * it directly is a stronger signal than the button's own state.
+	 * matching the sum of days entered so far), so the next day is only started once the app has
+	 * genuinely registered this day's hours.
 	 */
 	public void waitForCellToContain(By locator, String expectedSubstring, int timeoutSeconds) {
 		try {
@@ -390,11 +514,6 @@ public class ReusableMethods {
 		alert.accept();
 	}
 
-	public void acceptConfirmationPopup() {
-		WebDriverWait wait = new WebDriverWait(getDriver(), Duration.ofSeconds(20));
-		Alert alert = wait.until(ExpectedConditions.alertIsPresent());
-		alert.accept();
-	}
 	public void clickElement(By locator) {
 		WebDriverWait wait = new WebDriverWait(getDriver(), Duration.ofSeconds(30));
 		WebElement element = wait.until(

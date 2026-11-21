@@ -213,7 +213,7 @@
 				<version>${maven.surefire.plugin.version}</version>
 				<configuration>
 					<includes>
-						<include>**/*Tests.java</include>
+						<include>**/TestRunner.java</include>
 					</includes>
 				</configuration>
 			</plugin>

@@ -20,9 +20,7 @@ Feature: SubmittingTimesheet functionality in NforcePulse
         | Thursday  | 8     | 00      | Bug fixing           |
         | Friday    | 8     | 00      | Documentation work   |
 
-       And the Employee selects Actions
        And the Employee select Submit
-       ##Then the Employee Select the submission confirmation popup
        And the Employee timesheet is successfully submitted and displayed as Submitted
 
 

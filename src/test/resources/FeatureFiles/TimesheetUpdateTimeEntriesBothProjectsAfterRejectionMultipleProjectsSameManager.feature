@@ -21,7 +21,6 @@ Feature: TimesheetUpdateTimeEntriesBothProjectsAfterRejectionMultipleProjectsSam
         | Thursday  | 6     | 00      | Bug fixing           |
         | Friday    | 2     | 00      | Documentation work   |
 
-       And the Employee selects Actions
        And the Employee select Submit
        And the Employee timesheet is successfully submitted and displayed as Submitted
 
@@ -37,13 +36,13 @@ Feature: TimesheetUpdateTimeEntriesBothProjectsAfterRejectionMultipleProjectsSam
         | Thursday  | 2     | 00      | Sync Thursday work  |
         | Friday    | 6     | 00      | Sync Friday work    |
 
-       And the Employee selects Actions
        And the Employee select Submit
        And the Employee timesheet is successfully submitted and displayed as Submitted
        And the Employee captures the submitted week and employee name for approval verification
 
        When the Employee logs out of the application
        And the Manager logs in with valid credentials
+       And the Manager switches to the Team Workspace
        Then the Manager navigates to the Approvals tab
        And the Manager locates the pending request for the captured week and employee name
        And the Manager clicks the review icon for that request
@@ -64,28 +63,25 @@ Feature: TimesheetUpdateTimeEntriesBothProjectsAfterRejectionMultipleProjectsSam
        And the Employee navigates to the previously submitted week
        And the Employee selects Actions for project "<Project1>"
        And the Employee selects Update
-       Then the Employee Select the submission confirmation popup
        And the Employee enter the following time entries and Notes for project "<Project1>"
        | Day       | Hours | Minutes | Notes                    |
        | Monday    | 4     | 00      | Updated development work |
 
-       And the Employee selects Actions for project "<Project1>"
-       And the Employee select Submit
+       And the Employee select Submit for project "<Project1>"
        And the Employee timesheet is successfully submitted and displayed as Submitted
 
        And the Employee selects Actions for project "<Project2>"
        And the Employee selects Update
-       Then the Employee Select the submission confirmation popup
        And the Employee enter the following time entries and Notes for project "<Project2>"
        | Day       | Hours | Minutes | Notes             |
        | Monday    | 4     | 00      | Updated Sync work |
 
-       And the Employee selects Actions for project "<Project2>"
-       And the Employee select Submit
+       And the Employee select Submit for project "<Project2>"
        And the Employee timesheet is successfully submitted and displayed as Submitted
 
        When the Employee logs out of the application
        And the Manager logs in with valid credentials
+       And the Manager switches to the Team Workspace
        Then the Manager navigates to the Approvals tab
        And the Manager navigates to the Re-Submitted tab
        And the Manager locates the pending request for the captured week and employee name
