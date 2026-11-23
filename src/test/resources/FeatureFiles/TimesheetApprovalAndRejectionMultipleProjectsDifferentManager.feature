@@ -2,6 +2,7 @@
 Feature: TimesheetApprovalAndRejectionMultipleProjectsDifferentManager functionality in NforcePulse
 
 	@SubmittingTimesheet @TimesheetApprovalAndRejectionMultipleProjectsDifferentManager
+      @Sanity02
 	Scenario Outline: Verify the timesheet submission for multiple projects under different managers, with one manager approving their project and the other rejecting theirs
 		Given the user launches the NforcePulse application
 		When the user enters valid credentials

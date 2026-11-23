@@ -2,7 +2,7 @@
 Feature: TimesheetUpdateProjectDetailsBothProjectsAfterRejectionMultipleProjectsSameManager functionality in NforcePulse
 
 	@SubmittingTimesheet @TimesheetUpdateProjectDetailsBothProjectsAfterRejectionMultipleProjectsSameManager
-      @SanityTesting24
+      @Sanity04
 	Scenario Outline: Verify the employee can correct the project details of both rejected projects submitted to the same manager, without touching their time entries, and the manager can approve both resubmissions
 		Given the user launches the NforcePulse application
 		When the user enters valid credentials

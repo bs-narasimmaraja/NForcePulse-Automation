@@ -2,7 +2,7 @@
 Feature: TimesheetRejection functionality in NforcePulse
 
 	@SubmittingTimesheet @TimesheetRejection
-      @Sanity26
+      @Sanity01
 	Scenario Outline: Verify the timesheet submission and manager rejection functionality in NforcePulse application
 		Given the user launches the NforcePulse application
 		When the user enters valid credentials

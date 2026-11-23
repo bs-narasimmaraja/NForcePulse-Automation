@@ -2,7 +2,7 @@
 Feature: TimesheetUpdateTimeEntriesAndProjectDetailsAfterRejectionMultipleProjectsDifferentManager functionality in NforcePulse
 
 	@SubmittingTimesheet @TimesheetUpdateTimeEntriesAndProjectDetailsAfterRejectionMultipleProjectsDifferentManager
-      @Sanity06
+      @Sanity05
 	Scenario Outline: Verify the employee can update the time entries of one rejected project and the project details of another rejected project, both submitted to different managers, and each manager approves their own resubmission independently
 		Given the user launches the NforcePulse application
 		When the user enters valid credentials
